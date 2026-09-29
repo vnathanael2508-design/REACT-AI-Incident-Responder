@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+
 # ============================================================
 # OPTIONAL DOTENV
 # ============================================================
@@ -28,8 +29,11 @@ except ImportError:
 
 try:
     from hindsight_client import Hindsight
+
     HINDSIGHT_AVAILABLE = True
+
 except ImportError:
+
     Hindsight = None
     HINDSIGHT_AVAILABLE = False
 
@@ -45,8 +49,15 @@ DATA_FILE = DATA_DIR / "incidents.json"
 
 STATIC_DIR = BASE_DIR / "static"
 
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-STATIC_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+STATIC_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
 
 
 # ============================================================
@@ -56,7 +67,7 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI(
     title="RE:ACT",
     description="AI Incident Response with Hindsight Memory",
-    version="2.0.0"
+    version="2.1.0"
 )
 
 
@@ -327,7 +338,6 @@ DEMO_INCIDENTS = [
 def load_local_incidents() -> List[dict]:
 
     if not DATA_FILE.exists():
-
         return []
 
     try:
@@ -341,12 +351,16 @@ def load_local_incidents() -> List[dict]:
             data = json.load(file)
 
         if isinstance(data, list):
-
             return data
 
         return []
 
-    except Exception:
+    except Exception as error:
+
+        print(
+            "Could not load incidents:",
+            error
+        )
 
         return []
 
@@ -401,7 +415,14 @@ STOP_WORDS = {
     "have",
     "had",
     "not",
-    "but"
+    "but",
+    "after",
+    "during",
+    "than",
+    "into",
+    "their",
+    "they",
+    "some"
 }
 
 
@@ -409,7 +430,7 @@ def normalize_text(
     text: str
 ) -> str:
 
-    text = text.lower()
+    text = str(text).lower()
 
     text = re.sub(
         r"[^a-z0-9\s]",
@@ -450,7 +471,6 @@ def local_similarity(
     b = tokenize(text2)
 
     if not a or not b:
-
         return 0.0
 
     intersection = a.intersection(b)
@@ -458,10 +478,41 @@ def local_similarity(
     union = a.union(b)
 
     if not union:
-
         return 0.0
 
     return len(intersection) / len(union)
+
+
+# ============================================================
+# PHRASE / KEYWORD SIMILARITY
+# ============================================================
+
+def keyword_similarity(
+    text1: str,
+    text2: str
+) -> float:
+
+    """
+    Measures how many meaningful words from the smaller
+    text appear in the other text.
+
+    This is intentionally more forgiving than pure
+    Jaccard similarity, which can produce very low
+    percentages for clearly related incidents.
+    """
+
+    a = tokenize(text1)
+    b = tokenize(text2)
+
+    if not a or not b:
+        return 0.0
+
+    smaller = a if len(a) <= len(b) else b
+    larger = b if len(a) <= len(b) else a
+
+    common = smaller.intersection(larger)
+
+    return len(common) / len(smaller)
 
 
 # ============================================================
@@ -478,7 +529,8 @@ FINGERPRINTS = {
         "postgresql",
         "sql",
         "connection pool",
-        "connection timeout"
+        "connection timeout",
+        "database connection"
     ],
 
     "TIMEOUT": [
@@ -567,7 +619,11 @@ def get_fingerprints(
 
         for keyword in keywords:
 
-            if normalize_text(keyword) in text:
+            normalized_keyword = normalize_text(
+                keyword
+            )
+
+            if normalized_keyword in text:
 
                 result.add(category)
 
@@ -607,8 +663,7 @@ def initialize_hindsight():
         )
 
         # Create memory bank.
-        # If it already exists, Hindsight may return an error.
-        # We simply continue because the bank is already usable.
+        # If the bank already exists, continue.
         try:
 
             hindsight_client.create_bank(
@@ -620,7 +675,7 @@ def initialize_hindsight():
 
             pass
 
-        # Test the connection
+        # Test connection.
         try:
 
             hindsight_client.list_memories(
@@ -630,8 +685,6 @@ def initialize_hindsight():
 
         except Exception:
 
-            # Some configurations may not allow this operation.
-            # The client can still be considered configured.
             pass
 
         hindsight_connected = True
@@ -820,6 +873,10 @@ Find previous incidents with similar:
 - root causes
 - successful fixes
 - failed troubleshooting actions
+
+Prioritize incidents with the same service,
+same failure pattern, same dependency,
+or similar error messages.
 """.strip()
 
         response = hindsight_client.recall(
@@ -905,12 +962,12 @@ def store_incident(
     ])
 
     data["fingerprints"] = list(
-        get_fingerprints(combined_text)
+        get_fingerprints(
+            combined_text
+        )
     )
 
-    # --------------------------------------------------------
     # Local memory
-    # --------------------------------------------------------
 
     incidents.append(data)
 
@@ -918,9 +975,7 @@ def store_incident(
         incidents
     )
 
-    # --------------------------------------------------------
     # Hindsight memory
-    # --------------------------------------------------------
 
     hindsight_stored = retain_in_hindsight(
         incident,
@@ -956,7 +1011,6 @@ def add_demo_incidents():
     for demo in DEMO_INCIDENTS:
 
         if demo["title"] in existing_titles:
-
             continue
 
         incident = Incident(
@@ -985,7 +1039,6 @@ def find_local_match(
     incidents = load_local_incidents()
 
     if not incidents:
-
         return None
 
     current_text = " ".join([
@@ -1009,14 +1062,8 @@ def find_local_match(
             old.get("title", ""),
             old.get("symptoms", ""),
             old.get("logs", ""),
-            old.get("root_cause", ""),
             old.get("recent_change", "")
         ])
-
-        text_score = local_similarity(
-            current_text,
-            old_text
-        )
 
         old_fingerprints = set(
             old.get(
@@ -1025,9 +1072,51 @@ def find_local_match(
             )
         )
 
-        fingerprint_score = 0
+        # ----------------------------------------------------
+        # SERVICE SCORE
+        # ----------------------------------------------------
 
-        if current_fingerprints and old_fingerprints:
+        current_service = normalize_text(
+            current.service
+        )
+
+        old_service = normalize_text(
+            old.get(
+                "service",
+                ""
+            )
+        )
+
+        service_score = 0.0
+
+        if current_service == old_service:
+
+            service_score = 1.0
+
+        elif (
+            current_service in old_service
+            or old_service in current_service
+        ):
+
+            service_score = 0.8
+
+        else:
+
+            service_score = keyword_similarity(
+                current.service,
+                old.get("service", "")
+            )
+
+        # ----------------------------------------------------
+        # FINGERPRINT SCORE
+        # ----------------------------------------------------
+
+        fingerprint_score = 0.0
+
+        if (
+            current_fingerprints
+            and old_fingerprints
+        ):
 
             common = (
                 current_fingerprints
@@ -1050,30 +1139,155 @@ def find_local_match(
                     len(union)
                 )
 
-        service_score = 0
+        # ----------------------------------------------------
+        # TITLE SCORE
+        # ----------------------------------------------------
 
-        if normalize_text(
-            current.service
-        ) == normalize_text(
-            old.get(
-                "service",
-                ""
-            )
-        ):
+        title_score = max(
+            local_similarity(
+                current.title,
+                old.get(
+                    "title",
+                    ""
+                )
+            ),
+            keyword_similarity(
+                current.title,
+                old.get(
+                    "title",
+                    ""
+                )
+            ) * 0.90
+        )
 
-            service_score = 1
+        # ----------------------------------------------------
+        # SYMPTOM SCORE
+        # ----------------------------------------------------
+
+        symptom_score = max(
+            local_similarity(
+                current.symptoms,
+                old.get(
+                    "symptoms",
+                    ""
+                )
+            ),
+            keyword_similarity(
+                current.symptoms,
+                old.get(
+                    "symptoms",
+                    ""
+                )
+            ) * 0.85
+        )
+
+        # ----------------------------------------------------
+        # LOG SCORE
+        # ----------------------------------------------------
+
+        log_score = max(
+            local_similarity(
+                current.logs,
+                old.get(
+                    "logs",
+                    ""
+                )
+            ),
+            keyword_similarity(
+                current.logs,
+                old.get(
+                    "logs",
+                    ""
+                )
+            ) * 0.80
+        )
+
+        # ----------------------------------------------------
+        # OVERALL TEXT SCORE
+        # ----------------------------------------------------
+
+        text_score = local_similarity(
+            current_text,
+            old_text
+        )
+
+        # ----------------------------------------------------
+        # KEYWORD SCORE
+        # ----------------------------------------------------
+
+        keyword_score = keyword_similarity(
+            current_text,
+            old_text
+        )
+
+        # ----------------------------------------------------
+        # FINAL WEIGHTED SCORE
+        # ----------------------------------------------------
 
         score = (
-            text_score * 0.60
+            service_score * 0.20
             +
-            fingerprint_score * 0.25
+            fingerprint_score * 0.30
             +
-            service_score * 0.15
+            title_score * 0.15
+            +
+            symptom_score * 0.15
+            +
+            log_score * 0.10
+            +
+            keyword_score * 0.07
+            +
+            text_score * 0.03
+        )
+
+        score = min(
+            max(score, 0.0),
+            1.0
         )
 
         candidates.append({
+
             "incident": old,
-            "score": score
+
+            "score": score,
+
+            "details": {
+
+                "service": round(
+                    service_score,
+                    3
+                ),
+
+                "fingerprint": round(
+                    fingerprint_score,
+                    3
+                ),
+
+                "title": round(
+                    title_score,
+                    3
+                ),
+
+                "symptoms": round(
+                    symptom_score,
+                    3
+                ),
+
+                "logs": round(
+                    log_score,
+                    3
+                ),
+
+                "keyword": round(
+                    keyword_score,
+                    3
+                ),
+
+                "text": round(
+                    text_score,
+                    3
+                )
+            }
         })
 
     candidates.sort(
@@ -1103,7 +1317,8 @@ def build_recommendations(
 
             recommendations.append(
                 "Previous successful fix: "
-                + historical[
+                +
+                historical[
                     "successful_fix"
                 ]
             )
@@ -1156,6 +1371,20 @@ def build_recommendations(
             recommendations.append(
                 "Check Redis connection pool and "
                 "cache availability."
+            )
+
+        if "PAYMENT" in fingerprints:
+
+            recommendations.append(
+                "Check payment transaction status and "
+                "payment service dependencies."
+            )
+
+        if "BOOKING" in fingerprints:
+
+            recommendations.append(
+                "Check booking queue and ticket "
+                "confirmation processing."
             )
 
     else:
@@ -1226,7 +1455,8 @@ def extract_hindsight_actions(
 
         if (
             "successful fix" in lower
-            or "worked" in lower
+            or "what worked" in lower
+            or "worked:" in lower
             or "resolved" in lower
         ):
 
@@ -1271,6 +1501,7 @@ async def get_status():
     incidents = load_local_incidents()
 
     return {
+
         "status": "online",
 
         "service": "RE:ACT",
@@ -1325,6 +1556,7 @@ async def get_incidents():
     incidents = load_local_incidents()
 
     return {
+
         "success": True,
 
         "count": len(
@@ -1357,6 +1589,7 @@ async def seed_demo():
     incidents = load_local_incidents()
 
     return {
+
         "success": True,
 
         "message": (
@@ -1395,7 +1628,9 @@ async def reset_memory():
 
     global memory_state
 
-    # Clear local memory
+    # Reset ONLY local memory.
+    # Hindsight memories remain persistent.
+
     save_local_incidents([])
 
     now = datetime.now(
@@ -1403,14 +1638,18 @@ async def reset_memory():
     ).isoformat()
 
     memory_state = {
+
         "initialized": True,
+
         "hindsight_connected": (
             hindsight_connected
         ),
+
         "last_updated": now
     }
 
     return {
+
         "success": True,
 
         "message": (
@@ -1448,6 +1687,7 @@ async def create_incident(
     )
 
     return {
+
         "success": True,
 
         "message": (
@@ -1478,9 +1718,9 @@ async def analyze_incident(
 
     initialize_react()
 
-    # --------------------------------------------------------
-    # FIRST: RECALL FROM HINDSIGHT
-    # --------------------------------------------------------
+    # ========================================================
+    # 1. RECALL FROM HINDSIGHT
+    # ========================================================
 
     hindsight_results = (
         recall_from_hindsight(
@@ -1494,16 +1734,19 @@ async def analyze_incident(
         )
     )
 
-    # --------------------------------------------------------
-    # SECOND: LOCAL FALLBACK MATCH
-    # --------------------------------------------------------
+    # ========================================================
+    # 2. LOCAL HISTORICAL MATCH
+    # ========================================================
 
     local_match = find_local_match(
         incident
     )
 
     historical = None
+
     local_score = 0.0
+
+    match_details = {}
 
     if local_match:
 
@@ -1515,44 +1758,68 @@ async def analyze_incident(
             local_match["score"]
         )
 
-    # --------------------------------------------------------
-    # HINDSIGHT FOUND SOMETHING
-    # --------------------------------------------------------
+        match_details = (
+            local_match.get(
+                "details",
+                {}
+            )
+        )
+
+    # ========================================================
+    # 3. DID HINDSIGHT RECALL ANYTHING?
+    # ========================================================
 
     hindsight_found = (
         len(hindsight_results) > 0
     )
 
-    # --------------------------------------------------------
-    # DETERMINE MATCH SCORE
-    # --------------------------------------------------------
+    # ========================================================
+    # 4. DETERMINE MATCH PERCENTAGE
+    # ========================================================
 
-    if local_score > 0:
+    if local_match:
 
         percentage = round(
             max(
-                0,
+                0.0,
                 min(
                     local_score,
-                    1
+                    1.0
                 )
             ) * 100
         )
 
+        # If Hindsight independently recalled a relevant
+        # historical memory, avoid displaying an extremely
+        # low local score for a clearly related incident.
+        if hindsight_found:
+
+            percentage = max(
+                percentage,
+                85
+            )
+
     elif hindsight_found:
 
-        # Hindsight found relevant memory,
-        # but exact similarity percentage is not
-        # exposed by every SDK response.
+        # Hindsight does not necessarily expose a numeric
+        # similarity score through every SDK response.
+        # Therefore this is a UI estimate indicating that
+        # relevant memory was successfully recalled.
         percentage = 85
 
     else:
 
         percentage = 0
 
-    # --------------------------------------------------------
-    # MATCH LABEL
-    # --------------------------------------------------------
+    # Never exceed 100.
+    percentage = min(
+        percentage,
+        100
+    )
+
+    # ========================================================
+    # 5. MATCH LABEL
+    # ========================================================
 
     if percentage >= 90:
 
@@ -1574,33 +1841,39 @@ async def analyze_incident(
 
         label = "No strong historical match"
 
-    # --------------------------------------------------------
-    # RECOMMENDATIONS
-    # --------------------------------------------------------
+    # ========================================================
+    # 6. RECOMMENDATIONS
+    # ========================================================
 
     recommendations = build_recommendations(
         incident,
         historical
     )
 
-    # Add Hindsight-specific recommendation
     if hindsight_found:
 
         recommendations.insert(
             0,
-            "Hindsight recalled previous incident experience "
-            "relevant to the current investigation."
+            "Hindsight recalled previous incident "
+            "experience relevant to the current investigation."
         )
 
-    # --------------------------------------------------------
-    # AVOID
-    # --------------------------------------------------------
+    # Remove duplicate recommendations.
+
+    recommendations = list(
+        dict.fromkeys(
+            recommendations
+        )
+    )
+
+    # ========================================================
+    # 7. AVOID
+    # ========================================================
 
     avoid = build_avoid(
         historical
     )
 
-    # Add Hindsight failed memories
     if hindsight_actions["failed"]:
 
         for item in hindsight_actions["failed"][:2]:
@@ -1612,9 +1885,9 @@ async def analyze_incident(
                     item
                 )
 
-    # --------------------------------------------------------
-    # SUCCESSFUL FIX
-    # --------------------------------------------------------
+    # ========================================================
+    # 8. SUCCESSFUL FIX
+    # ========================================================
 
     successful_fix = ""
 
@@ -1625,8 +1898,6 @@ async def analyze_incident(
             ""
         )
 
-    # If local memory does not have one,
-    # return Hindsight result.
     if (
         not successful_fix
         and hindsight_actions["successful"]
@@ -1638,9 +1909,9 @@ async def analyze_incident(
             ][0]
         )
 
-    # --------------------------------------------------------
-    # ROOT CAUSE
-    # --------------------------------------------------------
+    # ========================================================
+    # 9. ROOT CAUSE
+    # ========================================================
 
     root_cause = ""
 
@@ -1651,11 +1922,12 @@ async def analyze_incident(
             ""
         )
 
-    # --------------------------------------------------------
-    # RESPONSE
-    # --------------------------------------------------------
+    # ========================================================
+    # 10. RETURN RESPONSE
+    # ========================================================
 
     return {
+
         "success": True,
 
         "match_found": (
@@ -1684,9 +1956,9 @@ async def analyze_incident(
             "No strong historical match was found."
         ),
 
-        # ----------------------------------------------------
+        # ====================================================
         # HINDSIGHT
-        # ----------------------------------------------------
+        # ====================================================
 
         "hindsight": {
 
@@ -1709,9 +1981,9 @@ async def analyze_incident(
             hindsight_found
         ),
 
-        # ----------------------------------------------------
+        # ====================================================
         # HISTORICAL INCIDENT
-        # ----------------------------------------------------
+        # ====================================================
 
         "historical_incident": historical,
 
@@ -1724,17 +1996,22 @@ async def analyze_incident(
         ),
 
         "failed_actions": (
+
             historical.get(
                 "failed_actions",
                 ""
             )
+
             if historical
-            else
-            (
+
+            else (
+
                 hindsight_actions[
                     "failed"
                 ][0]
+
                 if hindsight_actions["failed"]
+
                 else ""
             )
         ),
@@ -1761,6 +2038,16 @@ async def analyze_incident(
                     incident.recent_change
                 ])
             )
+        ),
+
+        # Useful for debugging / UI if needed.
+        "match_details": match_details,
+
+        "score_explanation": (
+            "Similarity estimate combines service, "
+            "incident fingerprints, title, symptoms, "
+            "logs and text overlap. Hindsight recall "
+            "is used as the memory layer."
         )
     }
 
@@ -1827,9 +2114,11 @@ async def startup_event():
 
     print()
     print("=" * 65)
+
     print(
         "        RE:ACT — AI INCIDENT COMMAND CENTER"
     )
+
     print("=" * 65)
 
     print(
@@ -1838,12 +2127,16 @@ async def startup_event():
 
     print(
         "Hindsight installed:",
-        "YES" if HINDSIGHT_AVAILABLE else "NO"
+        "YES"
+        if HINDSIGHT_AVAILABLE
+        else "NO"
     )
 
     print(
         "Hindsight connected:",
-        "YES" if hindsight_connected else "NO"
+        "YES"
+        if hindsight_connected
+        else "NO"
     )
 
     print(
