@@ -1,0 +1,90 @@
+[
+  {
+    "service": "Payments API",
+    "title": "Payment API database connection timeout",
+    "severity": "SEV-1",
+    "symptoms": "Payment requests are failing with 500 errors. Database connection timeout. Connection pool exhausted.",
+    "logs": "ERROR PaymentService: database connection timeout\nERROR ConnectionPool: unable to acquire connection\nHTTP 500 POST /api/payment\nConnection pool exhausted",
+    "root_cause": "Database connection pool was exhausted.",
+    "attempted_actions": "Restarted the Payments API.",
+    "failed_actions": "Repeated application restarts did not resolve the database connection issue.",
+    "successful_fix": "Increased the database connection pool and restarted the affected service.",
+    "resolution_minutes": 18,
+    "recent_change": "Database connection pool configuration was changed during the latest deployment.",
+    "id": "INC-C8398822",
+    "created_at": "2026-09-29T12:27:14.631023+00:00",
+    "updated_at": "2026-09-29T12:27:14.631023+00:00",
+    "fingerprints": [
+      "PAYMENT",
+      "TIMEOUT",
+      "DEPLOYMENT",
+      "DATABASE"
+    ]
+  },
+  {
+    "service": "Railway Booking API",
+    "title": "Passengers charged but tickets not generated",
+    "severity": "SEV-1",
+    "symptoms": "Passengers are successfully charged, but ticket confirmations are delayed or missing. Some users receive duplicate payment notifications.",
+    "logs": "ERROR BookingService: ticket generation timeout\nERROR PaymentService: payment completed successfully\nWARN BookingQueue: message processing delayed\nERROR BookingService: booking confirmation not received\nWARN QueueConsumer: retry limit reached",
+    "root_cause": "Booking messages were stuck between the payment service and booking queue.",
+    "attempted_actions": "Restarted the Booking API.",
+    "failed_actions": "Restarting the Booking API did not resolve the issue.",
+    "successful_fix": "Reprocessed the booking queue and corrected the payment gateway configuration.",
+    "resolution_minutes": 24,
+    "recent_change": "New payment gateway integration was deployed.",
+    "id": "INC-D0B41AA6",
+    "created_at": "2026-09-29T12:27:14.632455+00:00",
+    "updated_at": "2026-09-29T12:27:14.632455+00:00",
+    "fingerprints": [
+      "PAYMENT",
+      "TIMEOUT",
+      "BOOKING",
+      "DEPLOYMENT",
+      "QUEUE"
+    ]
+  },
+  {
+    "service": "Authentication Service",
+    "title": "Users unable to login after deployment",
+    "severity": "SEV-2",
+    "symptoms": "Users are unable to login. Authentication requests return 401 errors. Token validation is failing.",
+    "logs": "ERROR AuthService: invalid token signature\nERROR JWT: signature verification failed\nHTTP 401 POST /api/login\nWARN Authentication middleware rejected request",
+    "root_cause": "Authentication signing configuration became inconsistent after deployment.",
+    "attempted_actions": "Restarted the authentication service.",
+    "failed_actions": "Restarting the authentication service did not resolve the invalid token signature errors.",
+    "successful_fix": "Rolled back the authentication deployment and regenerated the signing configuration.",
+    "resolution_minutes": 15,
+    "recent_change": "A new authentication service version was deployed.",
+    "id": "INC-BD539CCA",
+    "created_at": "2026-09-29T12:27:14.633555+00:00",
+    "updated_at": "2026-09-29T12:27:14.633555+00:00",
+    "fingerprints": [
+      "AUTH",
+      "DEPLOYMENT"
+    ]
+  },
+  {
+    "service": "Redis Cache Service",
+    "title": "Redis cache timeout causing slow API responses",
+    "severity": "SEV-2",
+    "symptoms": "API requests are taking longer than normal. Redis requests are timing out and cache hit rate dropped.",
+    "logs": "ERROR RedisClient: connection timeout\nWARN CacheService: Redis unavailable\nWARN API latency exceeded threshold\nERROR RedisPool: unable to acquire connection",
+    "root_cause": "Redis connection pool reached its configured limit.",
+    "attempted_actions": "Restarted the API service.",
+    "failed_actions": "Restarting the API did not resolve the Redis timeout.",
+    "successful_fix": "Increased the Redis connection pool limit and restarted the affected workers.",
+    "resolution_minutes": 21,
+    "recent_change": "Traffic increased significantly after the latest release.",
+    "id": "INC-21166285",
+    "created_at": "2026-09-29T12:27:14.634370+00:00",
+    "updated_at": "2026-09-29T12:27:14.634370+00:00",
+    "fingerprints": [
+      "NETWORK",
+      "TIMEOUT",
+      "REDIS",
+      "DEPLOYMENT",
+      "DATABASE"
+    ]
+  }
+]

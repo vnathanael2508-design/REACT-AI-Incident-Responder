@@ -1,0 +1,2437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>RE:ACT — AI Incident Command Center</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #05070d;
+            --panel: rgba(15, 20, 32, 0.82);
+            --panel-light: rgba(25, 32, 48, 0.78);
+            --border: rgba(255, 255, 255, 0.09);
+            --text: #f4f7fb;
+            --muted: #8993a7;
+            --green: #39e58c;
+            --blue: #5b8cff;
+            --purple: #9b6cff;
+            --yellow: #ffc857;
+            --red: #ff5c73;
+        }
+
+        body {
+            font-family: Inter, -apple-system, BlinkMacSystemFont,
+                         "Segoe UI", sans-serif;
+            background:
+                radial-gradient(
+                    circle at 20% 10%,
+                    rgba(91, 140, 255, 0.13),
+                    transparent 30%
+                ),
+                radial-gradient(
+                    circle at 80% 20%,
+                    rgba(155, 108, 255, 0.11),
+                    transparent 28%
+                ),
+                var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(
+                    rgba(255,255,255,0.025) 1px,
+                    transparent 1px
+                ),
+                linear-gradient(
+                    90deg,
+                    rgba(255,255,255,0.025) 1px,
+                    transparent 1px
+                );
+            background-size: 45px 45px;
+            mask-image: linear-gradient(
+                to bottom,
+                black,
+                transparent 85%
+            );
+        }
+
+        button,
+        input,
+        textarea,
+        select {
+            font: inherit;
+        }
+
+        .container {
+            width: min(1200px, 92%);
+            margin: auto;
+        }
+
+        /* NAVBAR */
+
+        nav {
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(18px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(5, 7, 13, 0.78);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-mark {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(
+                135deg,
+                var(--blue),
+                var(--purple)
+            );
+            box-shadow:
+                0 0 30px rgba(91, 140, 255, 0.3);
+        }
+
+        .brand-name {
+            font-size: 20px;
+        }
+
+        .brand-sub {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 12px var(--green);
+        }
+
+        /* HERO */
+
+        .hero {
+            padding: 72px 0 50px;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero-orb {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(91,140,255,0.35),
+                    rgba(155,108,255,0.08) 60%,
+                    transparent 70%
+                );
+            border: 1px solid rgba(91,140,255,0.25);
+            box-shadow:
+                0 0 80px rgba(91,140,255,0.16);
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .hero-orb span {
+            font-size: 42px;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .eyebrow {
+            display: inline-block;
+            padding: 7px 12px;
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            color: #b7c4df;
+            font-size: 12px;
+            margin-bottom: 18px;
+            background: rgba(255,255,255,0.035);
+        }
+
+        h1 {
+            font-size: clamp(42px, 7vw, 78px);
+            line-height: 0.95;
+            letter-spacing: -4px;
+            margin-bottom: 22px;
+        }
+
+        .gradient-text {
+            background: linear-gradient(
+                100deg,
+                #ffffff,
+                #8eaeff,
+                #bd9cff
+            );
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .hero p {
+            max-width: 690px;
+            margin: auto;
+            color: var(--muted);
+            font-size: 17px;
+            line-height: 1.7;
+        }
+
+        /* PIPELINE */
+
+        .pipeline {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            margin: 20px 0 50px;
+        }
+
+        .pipeline-item {
+            padding: 15px 8px;
+            text-align: center;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: rgba(255,255,255,0.025);
+            color: #aeb9ce;
+            font-size: 12px;
+        }
+
+        .pipeline-item strong {
+            display: block;
+            color: var(--text);
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+
+        /* METRICS */
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .metric {
+            padding: 22px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: var(--panel);
+            backdrop-filter: blur(16px);
+        }
+
+        .metric-label {
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-value {
+            margin-top: 10px;
+            font-size: 30px;
+            font-weight: 800;
+        }
+
+        .metric-value.green {
+            color: var(--green);
+        }
+
+        /* MAIN GRID */
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 0.95fr 1.05fr;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .panel {
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            background: var(--panel);
+            backdrop-filter: blur(18px);
+            padding: 25px;
+            box-shadow:
+                0 20px 60px rgba(0,0,0,0.22);
+        }
+
+        .panel-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-title h2 {
+            font-size: 18px;
+        }
+
+        .panel-title span {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        /* FORM */
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            color: #b8c1d3;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            color: var(--text);
+            background: rgba(4, 7, 14, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 13px;
+            outline: none;
+            transition: 0.2s ease;
+        }
+
+        textarea {
+            min-height: 105px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: rgba(91,140,255,0.65);
+            box-shadow:
+                0 0 0 3px rgba(91,140,255,0.08);
+        }
+
+        select option {
+            background: #111827;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+        }
+
+        button {
+            border: none;
+            border-radius: 12px;
+            padding: 12px 17px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+        }
+
+        .primary {
+            background: linear-gradient(
+                135deg,
+                var(--blue),
+                var(--purple)
+            );
+            color: white;
+            box-shadow:
+                0 10px 28px rgba(91,140,255,0.18);
+        }
+
+        .secondary {
+            color: #d8dfed;
+            background: rgba(255,255,255,0.055);
+            border: 1px solid var(--border);
+        }
+
+        .danger {
+            color: #ffabb7;
+            background: rgba(255,92,115,0.08);
+            border: 1px solid rgba(255,92,115,0.2);
+        }
+
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* RESULT */
+
+        .result-empty {
+            min-height: 430px;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            color: var(--muted);
+            padding: 30px;
+        }
+
+        .result-empty-icon {
+            font-size: 42px;
+            margin-bottom: 15px;
+        }
+
+        .result-content {
+            display: none;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding-bottom: 22px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .score {
+            width: 92px;
+            height: 92px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 2px solid rgba(91,140,255,0.5);
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(91,140,255,0.16),
+                    transparent 70%
+                );
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .match-title {
+            font-size: 21px;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        .match-subtitle {
+            color: var(--muted);
+            line-height: 1.5;
+            font-size: 13px;
+        }
+
+        .section {
+            margin-top: 23px;
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 11px;
+        }
+
+        .incident-card {
+            padding: 17px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: rgba(255,255,255,0.025);
+        }
+
+        .incident-card h3 {
+            font-size: 16px;
+            margin-bottom: 9px;
+        }
+
+        .incident-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+
+        .tag {
+            padding: 5px 8px;
+            border-radius: 7px;
+            font-size: 11px;
+            color: #bdc7da;
+            background: rgba(255,255,255,0.06);
+        }
+
+        .root-cause {
+            margin-top: 13px;
+            color: #b9c3d7;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .hindsight-box {
+            padding: 17px;
+            border-radius: 14px;
+            border: 1px solid rgba(155,108,255,0.2);
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(155,108,255,0.09),
+                    rgba(91,140,255,0.05)
+                );
+            color: #c9c2e8;
+            line-height: 1.65;
+            font-size: 13px;
+        }
+
+        .recommendation {
+            padding: 11px 13px;
+            border-left: 3px solid var(--green);
+            margin-bottom: 8px;
+            border-radius: 0 9px 9px 0;
+            background: rgba(57,229,140,0.045);
+            color: #cbd5e5;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .avoid {
+            padding: 11px 13px;
+            border-left: 3px solid var(--red);
+            margin-bottom: 8px;
+            border-radius: 0 9px 9px 0;
+            background: rgba(255,92,115,0.045);
+            color: #d1b8be;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .error-box {
+            padding: 15px;
+            border-radius: 12px;
+            background: rgba(255,92,115,0.08);
+            border: 1px solid rgba(255,92,115,0.18);
+            color: #ffb1bd;
+            line-height: 1.6;
+            font-size: 13px;
+        }
+
+        /* MEMORY */
+
+        .memory-panel {
+            margin-top: 18px;
+        }
+
+        .memory-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .memory-card {
+            padding: 17px;
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            background: rgba(255,255,255,0.025);
+        }
+
+        .memory-card h3 {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .memory-card p {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .memory-label {
+            display: inline-block;
+            color: var(--purple);
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        /* LOADING */
+
+        .loading {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .spinner {
+            width: 15px;
+            height: 15px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* TOAST */
+
+        .toast {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            max-width: 350px;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            background: rgba(13,17,27,0.94);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+            color: #dce4f2;
+            font-size: 13px;
+            transform: translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: 0.25s ease;
+            z-index: 500;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        footer {
+            padding: 50px 0 35px;
+            text-align: center;
+            color: #687286;
+            font-size: 12px;
+        }
+
+        /* RESPONSIVE */
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pipeline {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 650px) {
+            .metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .field.full {
+                grid-column: auto;
+            }
+
+            .pipeline {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .memory-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                letter-spacing: -2px;
+            }
+
+            .result-header {
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+
+    <nav>
+        <div class="container"
+             style="width:92%; display:flex; align-items:center; justify-content:space-between; margin:auto;">
+
+            <div class="brand">
+                <div class="brand-mark">⚡</div>
+
+                <div>
+                    <div class="brand-name">RE:ACT</div>
+                    <div class="brand-sub">
+                        AI Incident Command Center
+                    </div>
+                </div>
+            </div>
+
+            <div class="status">
+                <span class="status-dot"></span>
+                System Online
+            </div>
+        </div>
+    </nav>
+
+
+    <main class="container">
+
+        <!-- HERO -->
+
+        <section class="hero">
+
+            <div class="hero-orb">
+                <span>🧠</span>
+            </div>
+
+            <div class="eyebrow">
+                AI INCIDENT RESPONSE • HINDSIGHT MEMORY
+            </div>
+
+            <h1>
+                Give your incidents
+                <span class="gradient-text">
+                    a memory.
+                </span>
+            </h1>
+
+            <p>
+                RE:ACT remembers what worked — and what failed.
+                Compare today's incident with previous incidents,
+                recover proven fixes, and avoid repeating failed actions.
+            </p>
+
+        </section>
+
+
+        <!-- LEARNING LOOP -->
+
+        <div class="pipeline">
+
+            <div class="pipeline-item">
+                <strong>01</strong>
+                Incident
+            </div>
+
+            <div class="pipeline-item">
+                <strong>02</strong>
+                Investigate
+            </div>
+
+            <div class="pipeline-item">
+                <strong>03</strong>
+                Recall
+            </div>
+
+            <div class="pipeline-item">
+                <strong>04</strong>
+                Resolve
+            </div>
+
+            <div class="pipeline-item">
+                <strong>05</strong>
+                Remember
+            </div>
+
+            <div class="pipeline-item">
+                <strong>06</strong>
+                Learn
+            </div>
+
+        </div>
+
+
+        <!-- METRICS -->
+
+        <section class="metrics">
+
+            <div class="metric">
+                <div class="metric-label">
+                    Stored Incidents
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="incidentCount">
+                    —
+                </div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">
+                    Top Historical Match
+                </div>
+
+                <div
+                    class="metric-value green"
+                    id="topMatch">
+                    —
+                </div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">
+                    Learning Layer
+                </div>
+
+                <div class="metric-value">
+                    Hindsight
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- MAIN -->
+
+        <section class="main-grid">
+
+            <!-- INCIDENT INPUT -->
+
+            <div class="panel">
+
+                <div class="panel-title">
+                    <div>
+                        <h2>⚡ Investigate Incident</h2>
+                    </div>
+
+                    <span>
+                        RE:ACT Memory
+                    </span>
+                </div>
+
+
+                <div class="form-grid">
+
+                    <div class="field">
+                        <label>
+                            Service
+                        </label>
+
+                        <input
+                            id="service"
+                            type="text"
+                            placeholder="e.g. Authentication Service">
+                    </div>
+
+
+                    <div class="field">
+                        <label>
+                            Severity
+                        </label>
+
+                        <select id="severity">
+
+                            <option value="SEV-1">
+                                SEV-1 — Critical
+                            </option>
+
+                            <option value="SEV-2">
+                                SEV-2 — High
+                            </option>
+
+                            <option value="SEV-3">
+                                SEV-3 — Medium
+                            </option>
+
+                        </select>
+                    </div>
+
+
+                    <div class="field full">
+                        <label>
+                            Incident Title
+                        </label>
+
+                        <input
+                            id="title"
+                            type="text"
+                            placeholder="Describe the incident">
+                    </div>
+
+
+                    <div class="field full">
+                        <label>
+                            Symptoms
+                        </label>
+
+                        <textarea
+                            id="symptoms"
+                            placeholder="What are users or systems experiencing?"></textarea>
+                    </div>
+
+
+                    <div class="field full">
+                        <label>
+                            Logs / Error Messages
+                        </label>
+
+                        <textarea
+                            id="logs"
+                            placeholder="Paste important logs or error messages"></textarea>
+                    </div>
+
+
+                    <div class="field full">
+                        <label>
+                            Recent Change
+                        </label>
+
+                        <input
+                            id="recentChange"
+                            type="text"
+                            placeholder="Deployment, configuration, infrastructure change, etc.">
+                    </div>
+
+
+                    <div class="field">
+                        <label>
+                            Resolution Time (minutes)
+                        </label>
+
+                        <input
+                            id="resolutionTime"
+                            type="number"
+                            min="0"
+                            placeholder="e.g. 24">
+                    </div>
+
+                </div>
+
+
+                <div class="button-row">
+
+                    <button
+                        class="secondary"
+                        id="demoBtn"
+                        type="button">
+                        + Add Demo
+                    </button>
+
+                    <button
+                        class="secondary"
+                        id="exampleBtn"
+                        type="button">
+                        Load Example
+                    </button>
+
+                    <button
+                        class="danger"
+                        id="resetBtn"
+                        type="button">
+                        Reset Memory
+                    </button>
+
+                    <button
+                        class="primary"
+                        id="analyzeBtn"
+                        type="button">
+                        🔍 Analyze Incident
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- RESULT -->
+
+            <div class="panel">
+
+                <div class="panel-title">
+                    <h2>
+                        🧠 AI Investigation Result
+                    </h2>
+
+                    <span id="analysisStatus">
+                        Waiting for analysis
+                    </span>
+                </div>
+
+
+                <div
+                    class="result-empty"
+                    id="resultEmpty">
+
+                    <div>
+
+                        <div class="result-empty-icon">
+                            🧠
+                        </div>
+
+                        <h3>
+                            Ready to investigate
+                        </h3>
+
+                        <p style="margin-top:8px;">
+                            Enter incident details and let
+                            RE:ACT recall previous experience.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="result-content"
+                    id="resultContent">
+
+                    <div class="result-header">
+
+                        <div
+                            class="score"
+                            id="matchScore">
+                            —
+                        </div>
+
+                        <div>
+
+                            <div
+                                class="match-title"
+                                id="matchTitle">
+                                Historical Match
+                            </div>
+
+                            <div
+                                class="match-subtitle"
+                                id="resultDescription">
+                                Previous experience changes
+                                today's investigation.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- HISTORICAL INCIDENT -->
+
+                    <div class="section">
+
+                        <div class="section-heading">
+                            📚 Historical Match
+                        </div>
+
+                        <div
+                            class="incident-card"
+                            id="historicalIncident">
+                        </div>
+
+                    </div>
+
+
+                    <!-- HINDSIGHT -->
+
+                    <div class="section">
+
+                        <div class="section-heading">
+                            🧠 Hindsight Memory
+                        </div>
+
+                        <div
+                            class="hindsight-box"
+                            id="hindsightBox">
+                        </div>
+
+                    </div>
+
+
+                    <!-- RECOMMENDATIONS -->
+
+                    <div class="section">
+
+                        <div class="section-heading">
+                            ✓ Recommended Actions
+                        </div>
+
+                        <div id="recommendations">
+                        </div>
+
+                    </div>
+
+
+                    <!-- AVOID -->
+
+                    <div class="section">
+
+                        <div class="section-heading">
+                            ⚠ Avoid Repeating
+                        </div>
+
+                        <div id="avoidActions">
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- MEMORY -->
+
+        <section class="panel memory-panel">
+
+            <div class="panel-title">
+
+                <div>
+                    <h2>
+                        📚 Incident Memory
+                    </h2>
+                </div>
+
+                <span>
+                    Powered by Hindsight
+                </span>
+
+            </div>
+
+            <div
+                class="memory-grid"
+                id="memoryGrid">
+
+                <div class="memory-card">
+                    <p>
+                        Loading incident memory...
+                    </p>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <footer>
+        RE:ACT — AI incident response that remembers
+        what worked and what failed.
+    </footer>
+
+
+    <div
+        class="toast"
+        id="toast">
+    </div>
+
+
+    <script>
+
+        /* ==========================================
+           BASIC HELPERS
+        ========================================== */
+
+        function $(id) {
+            return document.getElementById(id);
+        }
+
+
+        function escapeHtml(value) {
+
+            if (value === null || value === undefined) {
+                return "";
+            }
+
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+
+        function showToast(message) {
+
+            const toast = $("toast");
+
+            toast.textContent = message;
+
+            toast.classList.add("show");
+
+            setTimeout(function() {
+                toast.classList.remove("show");
+            }, 3000);
+        }
+
+
+        /* ==========================================
+           API
+        ========================================== */
+
+        async function apiRequest(
+            url,
+            options = {}
+        ) {
+
+            const response =
+                await fetch(url, options);
+
+            let data = {};
+
+            try {
+                data = await response.json();
+            }
+
+            catch (error) {
+                data = {};
+            }
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.detail ||
+                    data.message ||
+                    "Server request failed."
+                );
+            }
+
+            return data;
+        }
+
+
+        /* ==========================================
+           LOAD STATUS
+        ========================================== */
+
+        async function loadStatus() {
+
+            try {
+
+                const data =
+                    await apiRequest(
+                        "/api/status"
+                    );
+
+                if (
+                    data &&
+                    data.incident_count !== undefined
+                ) {
+
+                    $("incidentCount")
+                        .textContent =
+                        data.incident_count;
+
+                }
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Status error:",
+                    error
+                );
+
+            }
+        }
+
+
+        /* ==========================================
+           LOAD INCIDENT MEMORY
+        ========================================== */
+
+        async function loadIncidents() {
+
+            try {
+
+                const data =
+                    await apiRequest(
+                        "/api/incidents"
+                    );
+
+                let incidents = [];
+
+                if (Array.isArray(data)) {
+                    incidents = data;
+                }
+
+                else if (
+                    Array.isArray(data.incidents)
+                ) {
+                    incidents = data.incidents;
+                }
+
+                else if (
+                    Array.isArray(data.data)
+                ) {
+                    incidents = data.data;
+                }
+
+
+                $("incidentCount")
+                    .textContent =
+                    incidents.length;
+
+
+                renderMemory(incidents);
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Memory error:",
+                    error
+                );
+
+                $("memoryGrid").innerHTML = `
+                    <div class="memory-card">
+                        <p>
+                            Could not load incident memory.
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+
+        /* ==========================================
+           MEMORY CARDS
+        ========================================== */
+
+        function renderMemory(incidents) {
+
+            const container =
+                $("memoryGrid");
+
+            if (!incidents.length) {
+
+                container.innerHTML = `
+                    <div class="memory-card">
+                        <span class="memory-label">
+                            Hindsight
+                        </span>
+
+                        <h3>
+                            No incidents stored yet
+                        </h3>
+
+                        <p>
+                            Resolve an incident and retain
+                            its outcome for future investigations.
+                        </p>
+                    </div>
+                `;
+
+                return;
+            }
+
+
+            container.innerHTML =
+                incidents
+                .slice(0, 8)
+                .map(function(incident) {
+
+                    return `
+                        <div class="memory-card">
+
+                            <span class="memory-label">
+                                Hindsight
+                            </span>
+
+                            <h3>
+                                ${escapeHtml(
+                                    incident.title ||
+                                    "Untitled Incident"
+                                )}
+                            </h3>
+
+                            <p>
+                                <strong>
+                                    ${escapeHtml(
+                                        incident.service ||
+                                        "Unknown Service"
+                                    )}
+                                </strong>
+                                ·
+                                ${escapeHtml(
+                                    incident.severity ||
+                                    "SEV-3"
+                                )}
+                            </p>
+
+                            <p style="margin-top:8px;">
+                                Root Cause:
+                                ${escapeHtml(
+                                    incident.root_cause ||
+                                    "Not recorded."
+                                )}
+                            </p>
+
+                            <p style="margin-top:8px;">
+                                Successful Fix:
+                                ${escapeHtml(
+                                    incident.successful_fix ||
+                                    "Not recorded."
+                                )}
+                            </p>
+
+                        </div>
+                    `;
+
+                })
+                .join("");
+        }
+
+
+        /* ==========================================
+           LOAD EXAMPLE
+        ========================================== */
+
+        function loadExample() {
+
+            $("service").value =
+                "Authentication Service";
+
+            $("severity").value =
+                "SEV-2";
+
+            $("title").value =
+                "Users unable to login after authentication deployment";
+
+            $("symptoms").value =
+                "Users are receiving authentication failures after the latest deployment. Login requests return 401 errors even though user credentials are valid.";
+
+            $("logs").value =
+                "ERROR AuthService: token signature validation failed\n" +
+                "ERROR JWT: invalid signing key\n" +
+                "HTTP 401 POST /api/login\n" +
+                "ERROR TokenService: signing configuration mismatch";
+
+            $("recentChange").value =
+                "Authentication service was deployed with a new environment configuration and signing key.";
+
+            $("resolutionTime").value =
+                "24";
+
+            showToast(
+                "Authentication incident example loaded."
+            );
+        }
+
+
+        /* ==========================================
+           ADD DEMO
+        ========================================== */
+
+        async function addDemo() {
+
+            const button =
+                $("demoBtn");
+
+            button.disabled = true;
+
+            button.textContent =
+                "Adding...";
+
+            try {
+
+                const response =
+                    await apiRequest(
+                        "/api/seed",
+                        {
+                            method: "POST"
+                        }
+                    );
+
+                showToast(
+                    response.message ||
+                    "Demo incident added."
+                );
+
+                await loadStatus();
+
+                await loadIncidents();
+
+            }
+
+            catch (error) {
+
+                showToast(
+                    error.message
+                );
+
+            }
+
+            finally {
+
+                button.disabled = false;
+
+                button.textContent =
+                    "+ Add Demo";
+            }
+        }
+
+
+        /* ==========================================
+           RESET MEMORY
+        ========================================== */
+
+        async function resetMemory() {
+
+            const confirmed =
+                confirm(
+                    "Are you sure you want to reset incident memory?"
+                );
+
+            if (!confirmed) {
+                return;
+            }
+
+
+            const button =
+                $("resetBtn");
+
+            button.disabled = true;
+
+            button.textContent =
+                "Resetting...";
+
+
+            try {
+
+                const response =
+                    await apiRequest(
+                        "/api/reset",
+                        {
+                            method: "POST"
+                        }
+                    );
+
+                showToast(
+                    response.message ||
+                    "Memory reset successfully."
+                );
+
+                await loadStatus();
+
+                await loadIncidents();
+
+                clearForm();
+
+            }
+
+            catch (error) {
+
+                showToast(
+                    error.message
+                );
+
+            }
+
+            finally {
+
+                button.disabled = false;
+
+                button.textContent =
+                    "Reset Memory";
+            }
+        }
+
+
+        /* ==========================================
+           CLEAR FORM
+        ========================================== */
+
+        function clearForm() {
+
+            $("service").value = "";
+
+            $("severity").value =
+                "SEV-1";
+
+            $("title").value = "";
+
+            $("symptoms").value = "";
+
+            $("logs").value = "";
+
+            $("recentChange").value = "";
+
+            $("resolutionTime").value = "";
+
+            $("resultEmpty").style.display =
+                "grid";
+
+            $("resultContent").style.display =
+                "none";
+
+            $("analysisStatus")
+                .textContent =
+                "Waiting for analysis";
+
+            $("topMatch")
+                .textContent =
+                "—";
+        }
+
+
+        /* ==========================================
+           ANALYZE INCIDENT
+        ========================================== */
+
+        async function analyzeIncident() {
+
+            const button =
+                $("analyzeBtn");
+
+
+            const incident = {
+
+                service:
+                    $("service")
+                    .value
+                    .trim(),
+
+                severity:
+                    $("severity")
+                    .value,
+
+                title:
+                    $("title")
+                    .value
+                    .trim(),
+
+                symptoms:
+                    $("symptoms")
+                    .value
+                    .trim(),
+
+                logs:
+                    $("logs")
+                    .value
+                    .trim(),
+
+                recent_change:
+                    $("recentChange")
+                    .value
+                    .trim(),
+
+                resolution_minutes:
+                    Number(
+                        $("resolutionTime")
+                        .value
+                    ) || 0
+            };
+
+
+            if (!incident.service) {
+
+                showToast(
+                    "Please enter the service name."
+                );
+
+                $("service").focus();
+
+                return;
+            }
+
+
+            if (!incident.title) {
+
+                showToast(
+                    "Please enter the incident title."
+                );
+
+                $("title").focus();
+
+                return;
+            }
+
+
+            if (
+                !incident.symptoms &&
+                !incident.logs
+            ) {
+
+                showToast(
+                    "Please enter symptoms or logs."
+                );
+
+                $("symptoms").focus();
+
+                return;
+            }
+
+
+            button.disabled = true;
+
+            button.innerHTML = `
+                <span class="loading">
+                    <span class="spinner"></span>
+                    Analyzing...
+                </span>
+            `;
+
+            $("analysisStatus")
+                .textContent =
+                "Analyzing incident";
+
+
+            try {
+
+                const data =
+                    await apiRequest(
+                        "/api/analyze",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify(
+                                    incident
+                                )
+                        }
+                    );
+
+
+                renderAnalysis(data);
+
+                showToast(
+                    "Incident analysis completed."
+                );
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Analysis error:",
+                    error
+                );
+
+                renderError(
+                    error.message
+                );
+
+                showToast(
+                    "Analysis failed."
+                );
+
+            }
+
+            finally {
+
+                button.disabled = false;
+
+                button.textContent =
+                    "🔍 Analyze Incident";
+
+                $("analysisStatus")
+                    .textContent =
+                    "Analysis complete";
+            }
+        }
+
+
+        /* ==========================================
+           RENDER ANALYSIS
+        ========================================== */
+
+        function renderAnalysis(data) {
+
+            $("resultEmpty")
+                .style.display =
+                "none";
+
+            $("resultContent")
+                .style.display =
+                "block";
+
+
+            const score =
+                Number(
+                    data.score ??
+                    data.match_score ??
+                    data.similarity ??
+                    0
+                );
+
+
+            $("matchScore")
+                .textContent =
+                Math.round(score) + "%";
+
+
+            $("topMatch")
+                .textContent =
+                Math.round(score) + "%";
+
+
+            const found =
+                data.match_found !== false &&
+                (
+                    data.status ===
+                    "historical_match" ||
+                    data.match_found ||
+                    data.incident
+                );
+
+
+            $("matchTitle")
+                .textContent =
+                found
+                    ? "Historical Match"
+                    : "No Historical Match";
+
+
+            const historical =
+                data.incident ||
+                data.historical_incident ||
+                data.match ||
+                null;
+
+
+            if (historical) {
+
+                renderHistoricalIncident(
+                    historical
+                );
+
+                renderHindsight(
+                    historical,
+                    data
+                );
+
+            }
+
+            else {
+
+                $("historicalIncident")
+                    .innerHTML = `
+                        <div class="error-box">
+                            No historical incident
+                            was found in memory.
+                        </div>
+                    `;
+
+                $("hindsightBox")
+                    .textContent =
+                    "No previous incident was close enough to guide this investigation.";
+            }
+
+
+            renderRecommendations(
+                data
+            );
+
+            renderAvoid(
+                data
+            );
+
+
+            $("resultDescription")
+                .innerHTML = historical
+                    ? `
+                        Previous experience changes
+                        today's investigation.
+                    `
+                    : `
+                        RE:ACT could not find a
+                        sufficiently similar historical incident.
+                    `;
+        }
+
+
+        /* ==========================================
+           HISTORICAL INCIDENT
+        ========================================== */
+
+        function renderHistoricalIncident(
+            incident
+        ) {
+
+            $("historicalIncident")
+                .innerHTML = `
+
+                    <h3>
+                        ${escapeHtml(
+                            incident.title ||
+                            "Historical Incident"
+                        )}
+                    </h3>
+
+                    <div class="incident-meta">
+
+                        <span class="tag">
+                            ${escapeHtml(
+                                incident.service ||
+                                "Unknown Service"
+                            )}
+                        </span>
+
+                        <span class="tag">
+                            ${escapeHtml(
+                                incident.severity ||
+                                "Unknown Severity"
+                            )}
+                        </span>
+
+                        <span class="tag">
+                            Hindsight
+                        </span>
+
+                    </div>
+
+                    <div class="root-cause">
+
+                        <strong>
+                            Root Cause:
+                        </strong>
+
+                        ${escapeHtml(
+                            incident.root_cause ||
+                            "Root cause not recorded."
+                        )}
+
+                        <br><br>
+
+                        <strong>
+                            Successful Fix:
+                        </strong>
+
+                        ${escapeHtml(
+                            incident.successful_fix ||
+                            "Successful fix not recorded."
+                        )}
+
+                    </div>
+                `;
+        }
+
+
+        /* ==========================================
+           HINDSIGHT
+        ========================================== */
+
+        function renderHindsight(
+            incident,
+            data
+        ) {
+
+            const successfulFix =
+                incident.successful_fix ||
+                data.successful_fix ||
+                data.previous_successful_fix ||
+                "No successful fix was recorded.";
+
+
+            $("hindsightBox")
+                .innerHTML = `
+
+                    <strong>
+                        RE:ACT recalled a previous incident
+                        from Hindsight memory.
+                    </strong>
+
+                    <br><br>
+
+                    Previous incident:
+                    <strong>
+                        ${escapeHtml(
+                            incident.title ||
+                            "Historical incident"
+                        )}
+                    </strong>
+
+                    <br><br>
+
+                    Root cause:
+                    ${escapeHtml(
+                        incident.root_cause ||
+                        "Not recorded."
+                    )}
+
+                    <br><br>
+
+                    What worked:
+                    ${escapeHtml(
+                        successfulFix
+                    )}
+
+                    <br><br>
+
+                    This historical outcome is being
+                    used to guide the current investigation.
+                `;
+        }
+
+
+        /* ==========================================
+           RECOMMENDATIONS
+           
+           IMPORTANT:
+           The backend already sends
+           "Previous successful fix".
+           
+           We DO NOT add another
+           "Prior successful fix"
+           here.
+        ========================================== */
+
+        function renderRecommendations(
+            data
+        ) {
+
+            const container =
+                $("recommendations");
+
+            let actions = [];
+
+
+            if (
+                Array.isArray(
+                    data.recommendations
+                )
+            ) {
+
+                actions =
+                    [...data.recommendations];
+
+            }
+
+            else if (
+                Array.isArray(
+                    data.recommended_actions
+                )
+            ) {
+
+                actions =
+                    [...data.recommended_actions];
+
+            }
+
+            else if (
+                Array.isArray(
+                    data.actions
+                )
+            ) {
+
+                actions =
+                    [...data.actions];
+
+            }
+
+            else if (
+                Array.isArray(
+                    data?.result?.recommendations
+                )
+            ) {
+
+                actions =
+                    [...data.result.recommendations];
+            }
+
+
+            /*
+             * Remove duplicate recommendation text.
+             *
+             * This is important because the backend
+             * already sends the successful fix.
+             */
+
+            const uniqueActions = [];
+
+            actions.forEach(
+                function(action) {
+
+                    const text =
+                        String(action);
+
+                    const exists =
+                        uniqueActions.some(
+                            function(existing) {
+
+                                return existing
+                                    .toLowerCase()
+                                    ===
+                                    text
+                                    .toLowerCase();
+
+                            }
+                        );
+
+                    if (!exists) {
+
+                        uniqueActions.push(
+                            text
+                        );
+                    }
+
+                }
+            );
+
+
+            actions =
+                uniqueActions;
+
+
+            if (!actions.length) {
+
+                actions = [
+
+                    "No specific historical actions available.",
+
+                    "Compare the current incident with the closest historical incident.",
+
+                    "Verify the highest-signal dependency before making changes.",
+
+                    "Retain the final outcome for future incidents."
+
+                ];
+            }
+
+
+            container.innerHTML =
+                actions
+                .map(
+                    function(action) {
+
+                        return `
+                            <div class="recommendation">
+                                ✓ ${escapeHtml(
+                                    action
+                                )}
+                            </div>
+                        `;
+
+                    }
+                )
+                .join("");
+        }
+
+
+        /* ==========================================
+           AVOID ACTIONS
+        ========================================== */
+
+        function renderAvoid(
+            data
+        ) {
+
+            const container =
+                $("avoidActions");
+
+            let actions = [];
+
+
+            if (
+                Array.isArray(
+                    data.avoid
+                )
+            ) {
+
+                actions =
+                    [...data.avoid];
+
+            }
+
+            else if (
+                Array.isArray(
+                    data.failed_actions
+                )
+            ) {
+
+                actions =
+                    [...data.failed_actions];
+
+            }
+
+            else if (
+                Array.isArray(
+                    data.avoid_actions
+                )
+            ) {
+
+                actions =
+                    [...data.avoid_actions];
+
+            }
+
+
+            const incident =
+                data.incident ||
+                data.historical_incident ||
+                data.match ||
+                null;
+
+
+            if (
+                incident &&
+                incident.failed_actions
+            ) {
+
+                actions.push(
+                    incident.failed_actions
+                );
+            }
+
+
+            const uniqueActions = [];
+
+
+            actions.forEach(
+                function(action) {
+
+                    const text =
+                        String(action);
+
+                    const exists =
+                        uniqueActions.some(
+                            function(existing) {
+
+                                return existing
+                                    .toLowerCase()
+                                    ===
+                                    text
+                                    .toLowerCase();
+
+                            }
+                        );
+
+                    if (!exists) {
+
+                        uniqueActions.push(
+                            text
+                        );
+                    }
+
+                }
+            );
+
+
+            actions =
+                uniqueActions;
+
+
+            if (!actions.length) {
+
+                container.innerHTML = `
+                    <div class="avoid">
+                        No failed historical actions
+                        were recorded for this incident.
+                    </div>
+                `;
+
+                return;
+            }
+
+
+            container.innerHTML =
+                actions
+                .map(
+                    function(action) {
+
+                        return `
+                            <div class="avoid">
+                                ⚠ ${escapeHtml(
+                                    action
+                                )}
+                            </div>
+                        `;
+
+                    }
+                )
+                .join("");
+        }
+
+
+        /* ==========================================
+           ERROR
+        ========================================== */
+
+        function renderError(
+            message
+        ) {
+
+            $("resultEmpty")
+                .style.display =
+                "none";
+
+            $("resultContent")
+                .style.display =
+                "block";
+
+
+            $("matchScore")
+                .textContent =
+                "—";
+
+
+            $("matchTitle")
+                .textContent =
+                "Analysis Failed";
+
+
+            $("resultDescription")
+                .textContent =
+                "The incident could not be analyzed.";
+
+
+            $("historicalIncident")
+                .innerHTML = `
+                    <div class="error-box">
+                        ${escapeHtml(
+                            message ||
+                            "Unknown error."
+                        )}
+                    </div>
+                `;
+
+
+            $("hindsightBox")
+                .textContent =
+                "Hindsight memory could not be queried because the analysis request failed.";
+
+
+            $("recommendations")
+                .innerHTML = `
+                    <div class="recommendation">
+                        ✓ Check that the FastAPI
+                        server is running.
+                    </div>
+
+                    <div class="recommendation">
+                        ✓ Verify that
+                        /api/analyze is available.
+                    </div>
+                `;
+
+
+            $("avoidActions")
+                .innerHTML = `
+                    <div class="avoid">
+                        ⚠ Do not repeatedly refresh.
+                        Check the backend Terminal
+                        for the actual error.
+                    </div>
+                `;
+        }
+
+
+        /* ==========================================
+           BUTTON EVENTS
+        ========================================== */
+
+        $("analyzeBtn")
+            .addEventListener(
+                "click",
+                analyzeIncident
+            );
+
+
+        $("exampleBtn")
+            .addEventListener(
+                "click",
+                loadExample
+            );
+
+
+        $("demoBtn")
+            .addEventListener(
+                "click",
+                addDemo
+            );
+
+
+        $("resetBtn")
+            .addEventListener(
+                "click",
+                resetMemory
+            );
+
+
+        /* ==========================================
+           INITIALIZE
+        ========================================== */
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            function() {
+
+                loadStatus();
+
+                loadIncidents();
+
+            }
+        );
+
+    </script>
+
+</body>
+</html>
